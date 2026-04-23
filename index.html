@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臺漫餐桌：臺漫與族群的深度饗宴</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Noto+Serif+TC:wght@900&family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        
+        :root {
+            --manga-yellow: #FFD700;
+            --manga-red: #E60012;
+            --manga-blue: #00A0E9;
+            --ink-black: #1a1a1a;
+            --halftone: radial-gradient(circle, #d1d1d1 1px, transparent 1px);
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8f8f8;
+            color: var(--ink-black);
+            margin: 0;
+            overflow-x: hidden;
+            background-image: var(--halftone);
+            background-size: 10px 10px;
+        }
+
+        .manga-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-left: 4px solid black;
+            border-right: 4px solid black;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .title-manga-style {
+            font-family: 'Noto Serif TC', serif;
+            font-weight: 900;
+            font-style: italic;
+            font-size: clamp(4rem, 15vw, 7rem);
+            color: #FFD700; 
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, -1px 1px 0 #000, 4px 4px 0 #000, 5px 5px 0 var(--manga-red), 6px 6px 0 var(--manga-red), 7px 7px 0 var(--manga-red), 8px 8px 0 var(--manga-red), 12px 12px 20px rgba(0,0,0,0.3);
+            transform: skew(-10deg) rotate(-2deg);
+            display: inline-block;
+            margin-bottom: 2rem;
+        }
+
+        .manga-panel {
+            background: white;
+            border: 4px solid var(--ink-black);
+            padding: 2.5rem;
+            margin: 60px 20px 180px 20px; 
+            position: relative;
+            z-index: 10;
+            box-shadow: 12px 12px 0px var(--ink-black);
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 1s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .manga-panel.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .map-section {
+            background: #fff;
+            border: 4px solid black;
+            padding: 20px;
+            margin: 60px 20px;
+            position: relative;
+            box-shadow: 10px 10px 0px var(--manga-yellow);
+        }
+
+        .map-point { cursor: pointer; }
+
+        .map-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 450px;
+            background: white;
+            border: 5px solid black;
+            padding: 25px;
+            z-index: 2000;
+            box-shadow: 15px 15px 0px var(--manga-blue);
+            display: none;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1500;
+            display: none;
+        }
+
+        /* 拖曳遊戲樣式 */
+        .game-tag {
+            cursor: grab;
+            border: 3px solid black;
+            padding: 10px 15px;
+            font-weight: 900;
+            margin: 5px;
+            display: inline-block;
+            background: white;
+            user-select: none;
+        }
+        .game-tag:active { cursor: grabbing; }
+        .drop-zone {
+            min-height: 120px;
+            border: 3px dashed #ccc;
+            padding: 10px;
+            transition: background 0.3s;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            justify-content: center;
+        }
+        .drop-zone.drag-over { background: rgba(0, 160, 233, 0.1); border-color: var(--manga-blue); }
+
+        .option-btn { display: block; width: 100%; text-align: left; padding: 20px; margin-top: 15px; border: 3px solid black; background: white; font-weight: 900; cursor: pointer; transition: 0.2s; line-height: 1.5; color: black; }
+        .option-btn:hover:not(.disabled) { transform: translate(-4px, -4px); box-shadow: 4px 4px 0px var(--manga-blue); background: #f0faff; }
+        .option-btn.selected { background: var(--manga-blue); color: black; pointer-events: none; }
+        .option-btn.disabled { opacity: 0.6; cursor: default; pointer-events: none; background: #f3f3f3; }
+
+        .summary-box { background: #fff9e6; border-left: 8px solid var(--manga-yellow); padding: 1.5rem; margin-bottom: 2rem; font-size: 1rem; line-height: 1.8; position: relative; }
+        .speech-bubble { background: white; border: 3px solid black; border-radius: 20px; padding: 25px; position: relative; margin-bottom: 30px; font-weight: 700; line-height: 1.7; font-size: 1.1rem; }
+        .analysis-box { background: #fdf2f2; border: 3px dashed var(--manga-red); padding: 20px; margin-top: 20px; display: none; }
+        .nav-progress { position: fixed; bottom: 20px; right: 20px; background: black; color: white; padding: 8px 20px; font-weight: 900; z-index: 100; border: 2px solid white; }
+        .locked { display: none !important; }
+        .manga-bg-txt { position: fixed; font-family: 'Bangers'; font-weight: 900; color: rgba(0,0,0,0.03); z-index: -1; pointer-events: none; text-transform: uppercase; white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay" onclick="closeModal()"></div>
+    <div class="map-modal" id="map-modal">
+        <h3 id="modal-title" class="text-2xl font-black mb-4 border-b-4 border-black pb-2"></h3>
+        <p id="modal-desc" class="font-bold leading-relaxed text-gray-700"></p>
+        <button onclick="closeModal()" class="mt-6 w-full bg-black text-white font-black py-2 hover:bg-red-600 transition">關閉視窗</button>
+    </div>
+
+    <div class="map-modal" id="error-modal" style="box-shadow: 15px 15px 0px var(--manga-red);">
+        <h3 class="text-2xl font-black mb-4 border-b-4 border-black pb-2 text-red-600">分類錯誤：再試試</h3>
+        <p class="font-bold leading-relaxed text-gray-700">提示：美食漫畫注重「視覺衝擊」與「生理慾望」；飲食漫畫則側重「歷史考察」與「生活轉譯」。請重新分配標籤！</p>
+        <button onclick="closeErrorModal()" class="mt-6 w-full bg-black text-white font-black py-2 hover:bg-gray-600 transition">回去調整標籤</button>
+    </div>
+
+    <div class="manga-container">
+        <div id="progress" class="nav-progress locked">連載進度: <span id="ch-num">0</span> / 4</div>
+
+        <!-- 封面 -->
+        <section id="hero" class="p-10 text-center min-h-screen flex flex-col justify-center items-center relative z-10">
+            <h1 class="title-manga-style">臺漫餐桌</h1>
+            <p class="bg-black text-white inline-block px-8 py-3 font-black text-2xl transform -skew-x-12 mb-16 italic">臺漫中的飲食文化脈絡</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full px-4">
+                <div onclick="startStory('reader')" class="p-8 border-4 border-black hover:bg-yellow-400 cursor-pointer transition shadow-[8px_8px_0px_#000]">
+                    <div class="text-6xl mb-4">🍚</div>
+                    <div class="font-black text-2xl">品味讀者</div>
+                </div>
+                <div onclick="startStory('artist')" class="p-8 border-4 border-black hover:bg-cyan-400 cursor-pointer transition shadow-[8px_8px_0px_#000]">
+                    <div class="text-6xl mb-4">🖋️</div>
+                    <div class="font-black text-2xl">匠心畫師</div>
+                </div>
+                <div onclick="startStory('official')" class="p-8 border-4 border-black hover:bg-red-500 hover:text-white cursor-pointer transition shadow-[8px_8px_0px_#000]">
+                    <div class="text-6xl mb-4">🏛️</div>
+                    <div class="font-black text-2xl">政策推手</div>
+                </div>
+            </div>
+        </section>
+
+        <main id="story-flow" class="p-2 pb-32 locked"></main>
+
+        <section id="ending" class="p-10 text-center locked h-screen flex flex-col justify-center">
+            <div class="manga-panel visible">
+                <h2 class="text-5xl font-black mb-8 italic">完結篇</h2>
+                <p id="ending-msg" class="text-xl font-bold leading-relaxed mb-10"></p>
+                <div class="flex flex-col gap-4">
+                    <a href="https://unews.nccu.edu.tw/unews/comic-local-cuisine/" target="_blank" class="bg-black text-white px-12 py-5 font-black text-xl hover:bg-blue-600 transition block text-center">前往大學報：查看全文報導</a>
+                    <button onclick="location.reload()" class="border-4 border-black px-12 py-5 font-black text-xl hover:bg-gray-100 transition">重新選擇視角</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const chapterTitles = ["第一話：本土記憶的召喚", "第二話：筆尖下的美味工藝", "第三話：漫畫類型的深度辯證", "第四話：跨出國門的異鄉饗宴"];
+        
+        const mapData = {
+            "臺北": { title: "《小梅屋》", desc: "以日治時期的臺北為背景，描述名門料亭「小梅屋」中，透過料理呈現出的臺日文化衝突。作品精細考據了大稻埕的建築與飲食習慣，是理解日治臺灣生活史的重要文本。" },
+            "臺南": { title: "《鯨舟堂休業中》", desc: "以臺南巷弄為舞台。作品中每道甜點不只是味覺的呈現，更透過臺南特有的節奏感，轉譯出這座古都特有的家族記憶與人情溫度。" },
+            "嘉義": { title: "《手路菜》", desc: "由編劇鄭心媚與多位漫畫家合作。嘉義的傳統市場與家庭料理在書中躍然紙上，透過每一道「手路菜」呈現臺灣家庭在情感傳遞上的含蓄與深切。" }
+        };
+
+        const scenarioData = {
+            reader: [
+                {
+                    quote: "近年來，臺灣漫畫題材呈現『萬花筒式』的噴發。根據 CCC 追漫台觀察，本土飲食元素的比例顯著提升，這不只是裝飾，而是為了喚醒讀者潛意識中的共同經驗。",
+                    scene: "你走進書店，架上的漫畫封面不再只有奇幻冒險，更多了魯肉飯、手搖飲等風景。你翻開一頁，感覺螢幕與紙張彷彿飄出了熱氣。",
+                    q: "當您身為讀者，看見這些本土食物標籤，最能打動您內心的是什麼？",
+                    options: [
+                        { t: "日常的共鳴感： 透過這些元素，我覺得漫畫不再是『日本進口』，而是從這片土地長出來的故事。", b: "分析：讀者傾向於尋求身份認同。根據報導，本土元素的融入成功縮短了作品與讀者間的『心理距離』，使作品成為連結生命經驗的載體。" },
+                        { t: "新穎的轉譯方式： 我驚訝於珍珠奶茶這類『日常』居然能變成漫畫中精緻的藝術符號。", b: "分析：您欣賞的是『符號轉譯』的魅力。專家李衣雲指出，創作者透過重新包裝日常符號，能讓讀者對習以為常的本土事物產生全新的審美價值。" }
+                    ]
+                },
+                {
+                    quote: "《手路菜》編劇鄭心媚強調，食物是推動情節的關鍵媒介。漫畫家在黑白與彩色之間，必須利用精緻的線條與排版，進行一場『感官的轉移』（Synesthesia）。",
+                    scene: "你注意到《手路菜》中一道看似簡單的滷排骨。雖然沒有色彩，但漫畫家透過豐富的層次感，讓你彷彿聽見了熱油滋滋聲與香氣。",
+                    q: "您認為漫畫如何克服『無法嗅到、嚐到』的物理局限？",
+                    options: [
+                        { t: "透過背景與角色的表情： 看到角色滿足的臉龐，我的大腦自動補完了味道。", b: "分析：這是漫畫特有的『參與式閱讀』。報導中提到，藉由角色情緒的鋪陳，讀者會將自身的味覺記憶投射至畫面中，達成共感。" },
+                        { t: "精緻的筆觸細節： 光影的處理與質感的描繪，讓食物在視覺上就具備了誘惑力。", b: "分析：畫師的功力是關鍵。透過線條的粗細變化與網點佈置，漫畫能將『色香味』轉譯為視覺密碼，觸發人類的本能慾望。" }
+                    ]
+                },
+                {
+                    quote: "政治大學副教授李衣雲將食物漫畫區分為兩類：一是以生理感官為主的『美食漫畫』；二是以歷史文化為核心的『飲食漫畫』。",
+                    scene: "你正在整理家中的收藏。一邊是描述料理對決、充滿華麗誇大表現的作品；另一邊則是緩緩訴說著一道菜餚如何見證族群融合的深度之作。",
+                    q: "面對這兩種類型，您認為哪一種更具備傳達『臺灣價值』的潛力？",
+                    options: [
+                        { t: "人文歷史風格： 透過考據日治時期或眷村菜，能讓我更認識臺灣的過去。", b: "分析：臺漫目前的主流優勢正是在此。如《小梅屋》，它不僅是漫畫，更是一場關於族群衝突與融合的視覺史學。" },
+                        { t: "大眾化熱門主題： 用珍珠奶茶等國際知名符號，更能讓世界快速記住臺灣。", b: "分析：這屬於戰略性的輸出思維。李衣雲建議，先利用全球認知的符號引起注意，再引導讀者進入核心的文化脈絡。" }
+                    ]
+                },
+                {
+                    quote: "雖然跨國輸出充滿文化隔閡的挑戰，但政府透過補助與展演計畫，積極與各國市場接軌。臺灣漫畫正嘗試將『本土口味』轉譯為『國際語言』。",
+                    scene: "你看到臺灣漫畫在歐洲與日本書展中大放異彩。外國讀者指著漫畫裡的牛肉麵露出驚奇的神情。你心想，這條路該如何走下去？",
+                    q: "展望未來，您希望臺漫在推廣本土文化時，應優先採取哪種策略？",
+                    options: [
+                        { t: "強化藝術性與考據深度： 讓臺漫成為具備收藏價值與學術深度的文化精品。", b: "分析：這能建立品牌價值。文化部推動的跨國展演正是在形塑這種『高品質』的臺漫形象，已有作品獲得國際漫畫獎項肯定。", d: "analysis-text-3" },
+                        { t: "產量與市場機制的媒合： 增加產量並強化與餐飲業的異業結盟，讓臺漫走入日常。", b: "分析：這是建立產業生態系。透過市場補助與曝光機制，讓創作者無後顧之憂，才能產出穩定且多元的作品帶動連鎖效應。", d: "analysis-text-3" }
+                    ]
+                }
+            ],
+            artist: [],
+            official: []
+        };
+        // 複製資料以維持邏輯一致性
+        scenarioData.artist = JSON.parse(JSON.stringify(scenarioData.reader)); 
+        scenarioData.official = JSON.parse(JSON.stringify(scenarioData.reader));
+
+        let currentPersona = '';
+        let currentGameState = {
+            "生理慾望": "none", "視覺衝擊": "none", "感官體驗": "none",
+            "歷史考據": "none", "生活轉譯": "none", "人文媒介": "none"
+        };
+        const correctAnswers = {
+            "生理慾望": "food", "視覺衝擊": "food", "感官體驗": "food",
+            "歷史考據": "culture", "生活轉譯": "culture", "人文媒介": "culture"
+        };
+
+        function startStory(p) {
+            currentPersona = p;
+            document.getElementById('hero').classList.add('locked');
+            document.getElementById('story-flow').classList.remove('locked');
+            document.getElementById('progress').classList.remove('locked');
+            renderFlow();
+            initScrollObserver();
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        function renderFlow() {
+            const flow = document.getElementById('story-flow');
+            const dataSet = scenarioData[currentPersona];
+            flow.innerHTML = '';
+
+            dataSet.forEach((data, index) => {
+                if (index === 3) {
+                    const mapPanel = document.createElement('div');
+                    mapPanel.className = 'map-section';
+                    mapPanel.innerHTML = `
+                        <div class="bg-black text-white px-4 py-1 inline-block font-black mb-4 transform -skew-x-12 italic">SPECIAL FEATURE</div>
+                        <h2 class="text-3xl font-black mb-6 italic underline decoration-yellow-400 decoration-8">漫畫作品地圖：地域 × 敘事</h2>
+                        <div class="relative flex justify-center bg-gray-50 border-4 border-black py-10 rounded-xl overflow-hidden">
+                            <svg viewBox="0 0 300 500" width="300" height="500">
+                                <path d="M150 20 L180 50 L200 120 L210 200 L200 300 L180 400 L150 480 L120 400 L100 300 L90 200 L100 120 L120 50 Z" fill="#e5e7eb" stroke="black" stroke-width="4" />
+                                <g class="map-point" onclick="openModal('臺北')">
+                                    <circle cx="165" cy="65" r="12" fill="#E60012" stroke="black" stroke-width="2" />
+                                    <text x="182" y="70" font-weight="900" font-size="16">臺北</text>
+                                </g>
+                                <g class="map-point" onclick="openModal('嘉義')">
+                                    <circle cx="125" cy="280" r="12" fill="#FFD700" stroke="black" stroke-width="2" />
+                                    <text x="142" y="285" font-weight="900" font-size="16">嘉義</text>
+                                </g>
+                                <g class="map-point" onclick="openModal('臺南')">
+                                    <circle cx="115" cy="330" r="12" fill="#00A0E9" stroke="black" stroke-width="2" />
+                                    <text x="132" y="335" font-weight="900" font-size="16">臺南</text>
+                                </g>
+                            </svg>
+                        </div>
+                    `;
+                    flow.appendChild(mapPanel);
+                }
+
+                const panel = document.createElement('div');
+                panel.className = 'manga-panel';
+                panel.id = `panel-${index}`;
+                panel.innerHTML = `
+                    <div class="bg-black text-white px-4 py-1 inline-block font-black mb-6 transform -skew-x-12 italic">PAGE ${index + 1}</div>
+                    <div class="summary-box">${data.quote}</div>
+                    <div class="speech-bubble">${data.scene}</div>
+                    <div class="mt-8 p-6 border-4 border-black bg-white">
+                        <p class="font-black italic mb-6 text-xl text-red-600">${chapterTitles[index]}</p>
+                        <p class="font-black mb-6 text-lg">${data.q}</p>
+                        <div id="opts-${index}">
+                            ${data.options.map((opt, i) => `
+                                <button onclick="selectOption(${index}, ${i})" class="option-btn">${opt.t}</button>
+                            `).join('')}
+                        </div>
+                        <div id="analysis-${index}" class="analysis-box">
+                            <p class="font-black text-red-600 mb-2">◈ 視角深度分析：</p>
+                            <p id="analysis-text-${index}" class="font-bold text-gray-700 leading-relaxed"></p>
+                        </div>
+                    </div>
+                `;
+                flow.appendChild(panel);
+
+                if (index === 3) {
+                    const gamePanel = document.createElement('div');
+                    gamePanel.className = 'manga-panel';
+                    gamePanel.innerHTML = `
+                        <div class="bg-black text-white px-4 py-1 inline-block font-black mb-6 transform -skew-x-12 italic">CHALLENGE GAME</div>
+                        <h2 class="text-3xl font-black mb-6 italic underline decoration-blue-400 decoration-8">漫畫大不同</h2>
+                        <p class="font-bold mb-4">請將下方的標籤「拖曳」至相對應的作品領域中：</p>
+                        
+                        <div class="grid grid-cols-2 gap-4 mt-8">
+                            <div class="border-4 border-black p-4 bg-red-50">
+                                <h3 class="font-black text-red-600 mb-4 border-b-2 border-black pb-2 text-center">美食漫畫<br><span class="text-xs text-black opacity-50">(感官刺激)</span></h3>
+                                <div id="food-drop" class="drop-zone" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                            </div>
+                            <div class="border-4 border-black p-4 bg-yellow-50">
+                                <h3 class="font-black text-yellow-600 mb-4 border-b-2 border-black pb-2 text-center">飲食漫畫<br><span class="text-xs text-black opacity-50">(文化脈絡)</span></h3>
+                                <div id="culture-drop" class="drop-zone" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 p-4 border-2 border-dashed border-gray-400 drop-zone" id="tag-pool" ondrop="drop(event)" ondragover="allowDrop(event)">
+                            ${Object.keys(correctAnswers).map(tag => `<div draggable="true" ondragstart="drag(event)" id="tag-${tag}" class="game-tag">${tag}</div>`).join('')}
+                        </div>
+
+                        <button onclick="checkGameResult()" class="mt-10 bg-black text-white w-full py-4 font-black text-xl hover:bg-red-600 transition shadow-[6px_6px_0px_#FFD700]">驗證分類結果</button>
+                        
+                        <div id="game-success-zone" class="hidden mt-8 text-center bg-green-50 p-6 border-4 border-green-600">
+                            <p class="text-2xl font-black text-green-700 mb-6">全數正確！您已掌握兩者的分類核心。</p>
+                            <button onclick="showEnding()" class="w-full bg-green-600 text-white py-4 font-black text-lg hover:bg-green-700 transition">進入最終結局</button>
+                        </div>
+                    `;
+                    flow.appendChild(gamePanel);
+                }
+            });
+        }
+
+        // 拖曳邏輯
+        function allowDrop(ev) {
+            ev.preventDefault();
+            ev.target.closest('.drop-zone').classList.add('drag-over');
+        }
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const el = document.getElementById(data);
+            const target = ev.target.closest('.drop-zone');
+            target.classList.remove('drag-over');
+            target.appendChild(el);
+
+            const tagName = data.replace('tag-', '');
+            if (target.id === 'food-drop') currentGameState[tagName] = 'food';
+            else if (target.id === 'culture-drop') currentGameState[tagName] = 'culture';
+            else currentGameState[tagName] = 'none';
+        }
+
+        function checkGameResult() {
+            let allCorrect = true;
+            for (let tag in correctAnswers) {
+                if (currentGameState[tag] !== correctAnswers[tag]) {
+                    allCorrect = false;
+                    break;
+                }
+            }
+            if (allCorrect) {
+                document.getElementById('game-success-zone').classList.remove('hidden');
+                document.getElementById('game-success-zone').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                document.getElementById('overlay').style.display = 'block';
+                document.getElementById('error-modal').style.display = 'block';
+            }
+        }
+
+        function closeErrorModal() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('error-modal').style.display = 'none';
+        }
+
+        function openModal(city) {
+            const data = mapData[city];
+            document.getElementById('modal-title').innerText = `${city}：${data.title}`;
+            document.getElementById('modal-desc').innerText = data.desc;
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('map-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('map-modal').style.display = 'none';
+        }
+
+        function selectOption(panelIdx, optIdx) {
+            const analysisBox = document.getElementById(`analysis-${panelIdx}`);
+            const analysisText = document.getElementById(`analysis-text-${panelIdx}`);
+            const optsContainer = document.getElementById(`opts-${panelIdx}`);
+            const buttons = optsContainer.querySelectorAll('button');
+            
+            buttons.forEach((btn, i) => {
+                btn.classList.add('disabled');
+                if(i === optIdx) btn.classList.add('selected');
+            });
+
+            analysisText.innerText = scenarioData[currentPersona][panelIdx].options[optIdx].b;
+            analysisBox.style.display = 'block';
+        }
+
+        function initScrollObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        if (entry.target.id.includes('panel')) {
+                            const index = entry.target.id.split('-')[1];
+                            document.getElementById('ch-num').innerText = parseInt(index) + 1;
+                        }
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            document.querySelectorAll('.manga-panel').forEach(p => observer.observe(p));
+        }
+
+        function showEnding() {
+            document.getElementById('story-flow').classList.add('locked');
+            document.getElementById('progress').classList.add('locked');
+            document.getElementById('ending').classList.remove('locked');
+            const msgs = {
+                reader: "您透過閱讀，完成了從感官到靈魂的旅行。在臺漫的萬花筒中，飲食不再執著於生存，更是文化與尊嚴的展現。",
+                artist: "筆尖下的每一道陰影，都是為了讓世界聞到臺灣的味道。",
+                official: "您看見了政策與市場連結的關鍵。透過符號轉譯與輔導機制，臺灣的飲食滋味終將在國際舞台上飄香。"
+            };
+            document.getElementById('ending-msg').innerText = msgs[currentPersona];
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+    </script>
+</body>
+</html>
